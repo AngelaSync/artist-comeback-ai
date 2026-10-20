@@ -9,16 +9,16 @@ description: Controls the whole Comeback Campaign Engine workflow. Decides which
 Runs the workflow PLAN > ORCHESTRATE > EXECUTE > CHECK > HUMAN APPROVAL > OUTPUT. It decides which agent or skill works next, passes the right data, counts rewrite rounds, and writes the activity log.
 
 ## Agents it controls
-1. Planner Agent -> uses planner_skill.md
-2. Execution Agent -> uses execution_skill.md
-3. Review & Compliance Agent -> uses review_compliance_skill.md
+1. Planner Agent -> uses planner-skill
+2. Execution Agent -> uses execution-skill
+3. Review & Compliance Agent -> uses review-compliance-skill
 
 ## Workflow
 ### Step 1 - Collect inputs
 Artist name, release title and type, release date, genre / vibe, platforms, links. If anything is missing, ask the user. Do not guess.
 
 ### Step 2 - PLAN
-Send the inputs to the Planner Agent. Get back the 4-week timeline. Log it.
+Send the inputs to the Planner Agent. Get back the timeline (4 weeks before release, plus 1 week after). Log it.
 
 ### Step 3 - EXECUTE
 Send the timeline and inputs to the Execution Agent. Get back the drafted hooks, captions, visual prompts, and press snippets. Log it.
