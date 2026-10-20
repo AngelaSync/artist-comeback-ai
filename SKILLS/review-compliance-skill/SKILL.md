@@ -9,7 +9,7 @@ description: Reviews a release timeline and drafted posts for wrong dates, false
 Checks the timeline and the drafted posts for mistakes, tone problems, privacy leaks, and rule-breaking before a human sees them.
 
 ## When to Use
-- The Content Creator has finished drafts.
+- The Execution Agent has finished drafts.
 - The Orchestrator asks for a check of the timeline or copy.
 
 ## When NOT to Use
@@ -44,7 +44,7 @@ Mark each check PASS or FIX. Give a short reason for every FIX.
 
 ## Rules
 - Be strict. If unsure, mark FIX.
-- Never rewrite the posts yourself. Send notes back to the Content Creator.
+- Never rewrite the posts yourself. Send notes back to the Execution Agent.
 - Maximum 2 rewrite rounds. After that, send to the human with the open problems listed.
 
 ## Output
