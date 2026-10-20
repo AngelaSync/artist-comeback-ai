@@ -14,44 +14,52 @@ Checks the timeline and the drafted posts for mistakes, tone problems, privacy l
 
 ## When NOT to Use
 - Nothing has been written yet.
-- The user wants new content (use the other skills).
+- The user wants new content (use planner-skill or execution-skill).
 
 ## Required Inputs
-- The user's original inputs (title, date, artist, vibe, platforms)
+- The user's original inputs (artist, title and type, date, vibe, platforms, links)
 - The timeline
 - The drafted posts
 
 ## Workflow
-### Step 1 - Check the facts
-Release title, date, artist name, and links match the user's inputs. Dates in the posts match the timeline.
+### Step 1 - Check the facts and dates
+- Release title, release type, date, artist name, and links match the user's inputs.
+- Dates in the posts match the timeline.
+- The day of the week matches each date, dates are in order, and the drop day equals the release date.
+- No post claims anything the user did not say (awards, charts, numbers, quotes, collaborators).
 
 ### Step 2 - Check the tone
 Posts match the genre / vibe and sound the same across the campaign.
 
 ### Step 3 - Check privacy and safety
-- No unreleased track names or lyrics (unless the user allowed it).
+- No lyrics and no unreleased track names, except the release title the user gave.
 - No personal information.
-- No fake claims (awards, charts, numbers) and no copied lyrics.
+- No text that looks like copied lyrics.
 
 ### Step 4 - Check platform rules
-Hashtags are not spammy. Length is OK for each platform. No misleading text.
+- Each post has 3 to 5 relevant hashtags. More than 5, or unrelated or repeated hashtags, is spammy.
+- Length is within each platform's current limits.
+- No misleading text.
+- Only platforms the user listed are used.
 
 ### Step 5 - Deliver a result
-Mark each check PASS or FIX. Give a short reason for every FIX.
+Mark each check PASS or FIX. Give a short reason for every FIX. List separately any open items for the human: placeholders such as [LINK] or [TO BE CONFIRMED], and anything only the human can decide.
 
 ## Tools
 - A simple checklist
 
 ## Rules
-- Be strict. If unsure, mark FIX.
-- Never rewrite the posts yourself. Send notes back to the Execution Agent.
-- Maximum 2 rewrite rounds. After that, send to the human with the open problems listed.
+- Be strict. If unsure whether something is a problem, mark FIX.
+- Placeholders such as [LINK] and [TO BE CONFIRMED] are allowed. List them as open items. Do not mark them FIX.
+- Never rewrite the posts yourself. Return the notes to the Orchestrator, which sends them to the Execution Agent.
+- The Orchestrator counts rewrite rounds (maximum 2 per review cycle). After that, the open problems go to the human.
 
 ## Output
-- Overall status: PASS or NEEDS FIX
-- Checklist table: Check | Result | Note
+- Overall status: PASS (no FIX) or NEEDS FIX (at least one FIX)
+- Checklist table: Check | Result (PASS or FIX) | Note
 - List of fixes (if any)
+- Open items for the human (if any)
 
 ## Error Handling
 - Missing original inputs: cannot check facts. Stop and tell the Orchestrator.
-- Unclear problem: mark it as "needs human review".
+- Problem unclear because information is missing: do not guess. Add it to the open items for the human.
