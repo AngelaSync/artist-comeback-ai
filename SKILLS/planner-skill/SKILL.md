@@ -13,8 +13,8 @@ Builds a day-by-day rollout plan for a new single or album. It counts back from 
 - The user asks for teaser dates, a pre-save window, or a drop day checklist.
 
 ## When NOT to Use
-- The user only wants captions or posts (use execution_skill.md).
-- The user wants copy checked (use review_compliance_skill.md).
+- The user only wants captions or posts (use execution-skill).
+- The user wants copy checked (use review-compliance-skill).
 - There is no release date and the user will not give one.
 
 ## Required Inputs
