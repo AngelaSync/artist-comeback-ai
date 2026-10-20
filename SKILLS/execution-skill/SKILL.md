@@ -13,11 +13,11 @@ Writes the social media posts for each milestone in the timeline. It matches the
 - The Orchestrator sends a finished timeline for drafting.
 
 ## When NOT to Use
-- The user wants a schedule only (use planner_skill.md).
-- The user wants a review of finished copy (use review_compliance_skill.md).
+- The user wants a schedule only (use planner-skill).
+- The user wants a review of finished copy (use review-compliance-skill).
 
 ## Required Inputs
-- The timeline from planner_skill.md
+- The timeline from planner-skill
 - Artist name, release title, genre / vibe
 - Platforms
 - Links (pre-save, streaming) if available
