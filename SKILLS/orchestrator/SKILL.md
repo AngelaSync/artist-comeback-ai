@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Controls the whole Comeback Campaign Engine workflow. Decides which agent works next, passes the right data, counts rewrite rounds, and runs the human approval gate. It is the controller, not a fourth agent.
+description: Controls the Comeback Campaign Engine workflow. Decides which agent works next, counts rewrite rounds, and runs the human approval gate. It is the controller, not a fourth agent.
 ---
 
 # Orchestrator
