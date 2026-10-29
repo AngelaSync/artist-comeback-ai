@@ -1,0 +1,1290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Comeback Campaign Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a release brief on the left like a session sheet; the right side is the signal chain
+   PLAN > ORCHESTRATE > EXECUTE > CHECK > HUMAN > OUTPUT, with the approval gate lit like a REC light. */
+:root{
+  --paper:#f3f4f7; --surface:#ffffff; --sunk:#eceef3; --ink:#15171c; --muted:#5b6170; --line:#d9dce4;
+  --accent:#2f45c9; --accent-ink:#ffffff; --accent-soft:#e6e9fb;
+  --rec:#d23a2a; --rec-soft:#fbe7e4; --pass:#1d7f47; --pass-soft:#e2f3e9; --warn:#a86a12; --warn-soft:#fbf0dc;
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#101217; --surface:#181b22; --sunk:#14161c; --ink:#e8eaf0; --muted:#9aa0ad; --line:#2a2e38;
+  --accent:#8c9cff; --accent-ink:#0d1030; --accent-soft:#232a52;
+  --rec:#ff6a58; --rec-soft:#3a1d1a; --pass:#4fc985; --pass-soft:#16301f; --warn:#e8b25a; --warn-soft:#33270f; color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --paper:#101217; --surface:#181b22; --sunk:#14161c; --ink:#e8eaf0; --muted:#9aa0ad; --line:#2a2e38;
+  --accent:#8c9cff; --accent-ink:#0d1030; --accent-soft:#232a52;
+  --rec:#ff6a58; --rec-soft:#3a1d1a; --pass:#4fc985; --pass-soft:#16301f; --warn:#e8b25a; --warn-soft:#33270f; color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{color-scheme:light}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1360px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+h1,h2,h3{margin:0;text-wrap:balance}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.eyebrow{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* Header */
+.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px;padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:20px}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:clamp(22px,3.2vw,32px);letter-spacing:-.01em;line-height:1.1}
+.brand p{margin:6px 0 0;color:var(--muted);max-width:62ch}
+.mode{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface);font-size:13px}
+.mode i{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.mode[data-m="claude"] i{background:var(--pass)}
+.mode[data-m="offline"] i{background:var(--warn)}
+
+/* Grid */
+.layout{display:grid;grid-template-columns:minmax(280px,340px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:920px){.layout{grid-template-columns:minmax(0,1fr)}}
+
+/* Brief */
+.brief{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:14px;position:sticky;top:max(16px,env(safe-area-inset-top,0px))}
+@media (max-width:920px){.brief{position:static}}
+.brief-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.brief-head h2{font-family:var(--f-display);font-size:15px;font-weight:500}
+.example-tag{font-size:12px;color:var(--warn);background:var(--warn-soft);padding:2px 8px;border-radius:999px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label,.field .lbl{font-size:13px;font-weight:500}
+.field .hint{font-size:12px;color:var(--muted)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+input[type=text],input[type=date],input[type=url],input[type=number],select,textarea{width:100%;background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+textarea{resize:vertical;min-height:60px}
+input:disabled,select:disabled,textarea:disabled{opacity:.6}
+.req{color:var(--rec)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip-toggle{position:relative}
+.chip-toggle input{position:absolute;opacity:0;pointer-events:none}
+.chip-toggle span{display:inline-block;padding:5px 10px;border:1px solid var(--line);border-radius:999px;font-size:13px;cursor:pointer;background:var(--sunk);user-select:none}
+.chip-toggle input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip-toggle input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.chip-toggle input:disabled+span{opacity:.6;cursor:default}
+.err-list{margin:0;padding:10px 12px 10px 28px;background:var(--rec-soft);color:var(--rec);border-radius:8px;font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:8px 14px;cursor:pointer;font-weight:500;font-size:14px}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.rec{background:var(--rec);border-color:var(--rec);color:#fff}
+.btn.pass{background:var(--pass);border-color:var(--pass);color:var(--surface)}
+.btn.big{padding:12px 16px;font-size:15px;width:100%}
+.btn.link{border:none;background:none;padding:2px 4px;color:var(--accent);font-weight:500}
+
+/* Pipeline */
+.main{display:flex;flex-direction:column;gap:18px;min-width:0}
+.chain{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.chain ol{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px}
+@media (max-width:760px){.chain ol{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.stage{border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:var(--sunk);display:flex;flex-direction:column;gap:2px;min-width:0}
+.stage .num{font-family:var(--f-mono);font-size:11px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+.stage .num i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.stage b{font-size:13px;font-weight:600}
+.stage small{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stage[data-s="running"]{border-color:var(--accent);background:var(--accent-soft)}
+.stage[data-s="running"] .num i{background:var(--accent);animation:pulse 1s infinite}
+.stage[data-s="done"] .num i{background:var(--pass)}
+.stage[data-s="fix"] .num i{background:var(--warn)}
+.stage[data-s="waiting"]{border-color:var(--rec);background:var(--rec-soft)}
+.stage[data-s="waiting"] .num i{background:var(--rec);animation:pulse 1.4s infinite}
+.stage[data-s="error"]{border-color:var(--rec)}
+.stage[data-s="error"] .num i{background:var(--rec)}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.stage .num i{animation:none!important}}
+.activity{margin-top:10px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:13.5px;min-height:24px}
+.activity .detail{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+
+/* Banners */
+.banner{border-radius:var(--r);padding:16px 18px;border:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:12px}
+.banner.gate{border-color:var(--rec);box-shadow:inset 4px 0 0 var(--rec)}
+.banner.stop{border-color:var(--rec);background:var(--rec-soft)}
+.banner.done{border-color:var(--pass);box-shadow:inset 4px 0 0 var(--pass)}
+.banner h2{font-family:var(--f-display);font-size:17px;font-weight:500}
+.banner .rec-dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--rec);margin-right:8px;vertical-align:1px}
+.gate-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.gate-box{background:var(--sunk);border-radius:8px;padding:12px;font-size:13.5px;min-width:0}
+.gate-box ul{margin:6px 0 0;padding-left:18px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.reject-form{display:flex;flex-direction:column;gap:8px;background:var(--sunk);padding:12px;border-radius:8px}
+.radio-row{display:flex;flex-wrap:wrap;gap:14px;font-size:14px}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px;cursor:pointer;font-weight:500;color:var(--muted);white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab .count{font-family:var(--f-mono);font-size:12px;margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--sunk)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.panel-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:12px}
+.panel-head h2{font-family:var(--f-display);font-size:16px;font-weight:500}
+.note{font-size:13px;padding:8px 12px;border-radius:8px;background:var(--warn-soft);color:var(--ink);margin:0 0 10px}
+.note.info{background:var(--accent-soft)}
+
+/* Table */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--sunk);padding:8px 10px;white-space:nowrap}
+td{padding:9px 10px;border-top:1px solid var(--line);vertical-align:top}
+tr.drop td{background:var(--accent-soft)}
+.tminus{font-family:var(--f-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.pf{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:999px;border:1px solid var(--line);margin:1px 3px 1px 0;white-space:nowrap}
+.pf.dsp{border-style:dashed}
+.checklist{margin:14px 0 0;padding:14px 16px;background:var(--sunk);border-radius:8px}
+.checklist h3{font-size:14px;margin-bottom:6px}
+.checklist ul{margin:0;padding-left:20px;font-size:14px}
+
+/* Posts */
+.day-group{margin-bottom:18px}
+.day-head{display:flex;gap:10px;align-items:baseline;margin-bottom:8px;flex-wrap:wrap}
+.day-head b{font-size:14px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:10px}
+.card{border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;background:var(--surface);min-width:0}
+.card.has-fix{border-color:var(--warn)}
+.card-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hook{font-weight:600}
+.caption{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px}
+.tags{font-family:var(--f-mono);font-size:12.5px;color:var(--accent);overflow-wrap:anywhere}
+.card-foot{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);font-family:var(--f-mono)}
+.over{color:var(--rec);font-weight:600}
+.fixes{margin:0;padding:8px 10px 8px 26px;background:var(--warn-soft);border-radius:6px;font-size:12.5px}
+.task{border-style:dashed;background:var(--sunk)}
+.pill{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.05em;padding:2px 8px;border-radius:999px;text-transform:uppercase;white-space:nowrap}
+.pill.pass{background:var(--pass-soft);color:var(--pass)}
+.pill.fix{background:var(--warn-soft);color:var(--warn)}
+.pill.na{background:var(--sunk);color:var(--muted)}
+.pill.rec{background:var(--rec-soft);color:var(--rec)}
+.card textarea,.card input{font-size:13.5px}
+.empty{padding:28px 16px;text-align:center;color:var(--muted);font-size:14px}
+
+/* Log */
+.log{font-family:var(--f-mono);font-size:12.5px}
+.log td{white-space:nowrap}
+.log td.res{white-space:normal;min-width:260px}
+
+/* Export */
+.export-grid{display:flex;flex-wrap:wrap;gap:8px}
+.export-out{width:100%;min-height:180px;font-family:var(--f-mono);font-size:12px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Comeback Campaign Engine</h1>
+      <p>Three agents plan your release rollout, write the posts and check them. Nothing leaves until you approve it, and nothing is ever posted for you.</p>
+    </div>
+    <div class="actions">
+      <div class="mode" id="mode" data-m="checking"><i></i><span id="modeText">Connecting to Claude…</span></div>
+      <button class="btn" type="button" id="keyBtn" aria-expanded="false">Connect Claude</button>
+    </div>
+  </header>
+  <form class="banner" id="keyPanel" hidden autocomplete="off" style="margin-bottom:20px">
+    <h2>Connect Claude</h2>
+    <div class="muted" style="font-size:13.5px;max-width:70ch">The agents call the Anthropic API with your own API key (create one at console.anthropic.com). The key is saved only in this browser and is sent only to api.anthropic.com. Without a key the engine runs on offline templates.</div>
+    <div class="row2" style="max-width:640px">
+      <div class="field"><label for="k-key">Anthropic API key</label><input type="password" id="k-key" placeholder="sk-ant-…"></div>
+      <div class="field"><label for="k-model">Model</label><input type="text" id="k-model" placeholder="claude-sonnet-5-5"></div>
+    </div>
+    <div class="actions"><button class="btn primary" type="submit">Save key</button><button class="btn" type="button" id="k-forget">Forget key</button><span class="muted" id="k-msg" style="font-size:13px"></span></div>
+  </form>
+
+  <div class="layout">
+    <!-- Release brief -->
+    <form class="brief" id="brief" autocomplete="off" novalidate>
+      <div class="brief-head">
+        <h2>Release brief</h2>
+        <span class="example-tag" id="exampleTag">Example — replace with yours</span>
+      </div>
+      <div class="field">
+        <label for="f-artist">Artist name <span class="req">*</span></label>
+        <input type="text" id="f-artist" name="artist">
+      </div>
+      <div class="field">
+        <label for="f-title">Release title <span class="req">*</span></label>
+        <input type="text" id="f-title" name="title">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="f-type">Type <span class="req">*</span></label>
+          <select id="f-type" name="type"><option value="single">Single</option><option value="EP">EP</option><option value="album">Album</option></select>
+        </div>
+        <div class="field">
+          <label for="f-date">Release date <span class="req">*</span></label>
+          <input type="date" id="f-date" name="date">
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-vibe">Genre / vibe <span class="req">*</span></label>
+        <input type="text" id="f-vibe" name="vibe" placeholder="e.g. loud and bold pop-punk">
+      </div>
+      <div class="field">
+        <span class="lbl">Platforms <span class="req">*</span></span>
+        <div class="chips" id="f-platforms"></div>
+      </div>
+      <div class="field">
+        <label for="f-presave">Pre-save link</label>
+        <input type="url" id="f-presave" name="presave" placeholder="https://… (blank = [LINK])">
+      </div>
+      <div class="field">
+        <label for="f-stream">Streaming link</label>
+        <input type="url" id="f-stream" name="stream" placeholder="https://… (blank = [LINK])">
+      </div>
+      <div class="field">
+        <label for="f-extra">Other facts posts may use</label>
+        <textarea id="f-extra" name="extra" rows="2" placeholder="e.g. First release in two years. Produced by …"></textarea>
+        <span class="hint">Agents use only facts written here and above. They never invent awards, numbers, quotes or collaborators.</span>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="f-before">Weeks before</label>
+          <input type="number" id="f-before" name="before" min="1" max="8" step="1">
+        </div>
+        <div class="field">
+          <label for="f-after">Weeks after</label>
+          <input type="number" id="f-after" name="after" min="0" max="2" step="1">
+        </div>
+      </div>
+      <div id="briefErrors"></div>
+      <button type="submit" class="btn primary big" id="runBtn">Run campaign</button>
+      <div class="actions" style="justify-content:space-between">
+        <button type="button" class="btn link" id="clearBtn">Clear brief</button>
+        <button type="button" class="btn link" id="resetBtn">Start over</button>
+      </div>
+    </form>
+
+    <!-- Main -->
+    <div class="main">
+      <section class="chain" aria-label="Workflow">
+        <ol id="chain"></ol>
+        <div class="activity" id="activity"></div>
+      </section>
+
+      <div id="banner"></div>
+
+      <div>
+        <div class="tabs" role="tablist" id="tabs">
+          <button class="tab" role="tab" data-tab="timeline" aria-selected="true">Timeline<span class="count" id="c-timeline">–</span></button>
+          <button class="tab" role="tab" data-tab="posts" aria-selected="false">Posts<span class="count" id="c-posts">–</span></button>
+          <button class="tab" role="tab" data-tab="review" aria-selected="false">Review<span class="count" id="c-review">–</span></button>
+          <button class="tab" role="tab" data-tab="log" aria-selected="false">Activity log<span class="count" id="c-log">0</span></button>
+        </div>
+        <div style="height:12px"></div>
+        <section class="panel" id="p-timeline"></section>
+        <section class="panel" id="p-posts" hidden></section>
+        <section class="panel" id="p-review" hidden></section>
+        <section class="panel" id="p-log" hidden></section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+"use strict";
+
+/* ---------------- Constants ---------------- */
+const PLATFORMS = {
+  instagram:{name:"Instagram", kind:"social", limit:2200, clickable:false},
+  tiktok:{name:"TikTok", kind:"social", limit:4000, clickable:false},
+  x:{name:"X", kind:"social", limit:280, clickable:true, xcount:true},
+  threads:{name:"Threads", kind:"social", limit:500, clickable:true},
+  facebook:{name:"Facebook", kind:"social", limit:63206, clickable:true},
+  youtube:{name:"YouTube", kind:"social", limit:5000, clickable:true},
+  spotify:{name:"Spotify", kind:"dsp"},
+  apple:{name:"Apple Music", kind:"dsp"}
+};
+const SOCIAL_ALL = ["instagram","tiktok","x","threads","facebook","youtube"];
+const STAGES = [
+  {k:"plan", n:"Plan", a:"Planner Agent"},
+  {k:"orchestrate", n:"Orchestrate", a:"Orchestrator"},
+  {k:"execute", n:"Execute", a:"Execution Agent"},
+  {k:"check", n:"Check", a:"Review & Compliance"},
+  {k:"human", n:"Human approval", a:"You"},
+  {k:"output", n:"Output", a:"Orchestrator"}
+];
+const PRE = [
+  {off:-28,key:"announce",label:"Comeback announcement",pf:SOCIAL_ALL,notes:"Announce the comeback. Light teaser, no full details yet."},
+  {off:-25,key:"tease",label:"Light teaser",pf:["tiktok","instagram","x"],notes:"Mood photo, short visual or sound snippet. No lyrics."},
+  {off:-21,key:"clip",label:"First teaser clip",pf:["tiktok","instagram","youtube"],notes:"Short clip (5–15 s) of the release."},
+  {off:-18,key:"coverhint",label:"Cover hint",pf:["instagram","x","threads"],notes:"Cropped or blurred piece of the cover art."},
+  {off:-14,key:"presave",label:"Pre-save opens",pf:SOCIAL_ALL,tasks:{spotify:"Pre-save / Countdown Page live: confirm in Spotify for Artists",apple:"Pre-add live: confirm in Apple Music for Artists"},notes:"Share the pre-save link.",link:"presave"},
+  {off:-12,key:"cover",label:"Cover art reveal",pf:["instagram","x","threads","facebook"],notes:"Full cover art with the release date.",link:"presave"},
+  {off:-7,key:"bts",label:"Behind the scenes",pf:["tiktok","instagram","youtube"],notes:"Studio, rehearsal or making-of content."},
+  {off:-3,key:"count3",label:"Countdown: 3 days",pf:["instagram","x","tiktok","threads"],notes:"Three days to go. Repeat the pre-save link.",link:"presave"},
+  {off:-1,key:"count1",label:"Countdown: tomorrow",pf:["instagram","x","threads","facebook"],notes:"Out tomorrow. Last pre-save push.",link:"presave"}
+];
+const DROP = [
+  {off:0,key:"release",label:"Release day post",pf:SOCIAL_ALL,tasks:{spotify:"Set the release as Artist Pick; add a Canvas",apple:"Check the release is live on Apple Music"},notes:"It's out. Share the streaming link.",link:"stream"},
+  {off:0,key:"stories",label:"Release stories",pf:["instagram","facebook"],notes:"Stories with a link sticker to the streaming link.",link:"stream"},
+  {off:0,key:"thanks0",label:"Drop-night thank-you",pf:["x","threads","instagram"],notes:"Evening thank-you to fans."}
+];
+const POST = [
+  {off:2,key:"reactions",label:"Fan reactions",pf:["tiktok","instagram"],notes:"Repost fan reactions (with permission). No stream numbers unless the artist gives them."},
+  {off:5,key:"thanks1",label:"Thank-you + streaming links",pf:SOCIAL_ALL,notes:"Thank fans and share the streaming link again.",link:"stream"},
+  {off:9,key:"week2",label:"Week 2 check-in",pf:["instagram","tiktok","x"],notes:"Favourite moments from release week.",wk:2},
+  {off:12,key:"spin",label:"Keep it spinning",pf:["instagram","x","threads","facebook"],notes:"Reminder to stream and share.",link:"stream",wk:2}
+];
+const STORE_KEY = "comeback-engine-v1";
+
+/* ---------------- Date tool ---------------- */
+const pad = n => String(n).padStart(2,"0");
+const DOW = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const MON = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+function todayISO(){const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
+function ms(iso){const [y,m,d]=iso.split("-").map(Number);return Date.UTC(y,m-1,d);}
+function iso(t){const d=new Date(t);return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;}
+function addDays(s,n){return iso(ms(s)+n*864e5);}
+function diffDays(a,b){return Math.round((ms(b)-ms(a))/864e5);}
+function dow(s){return DOW[new Date(ms(s)).getUTCDay()];}
+function validISO(s){return /^\d{4}-\d{2}-\d{2}$/.test(s||"") && iso(ms(s))===s;}
+function fmtLong(s){const d=new Date(ms(s));return `${DOW[d.getUTCDay()]}, ${MON[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;}
+function fmtShort(s){const d=new Date(ms(s));return `${MON[d.getUTCMonth()].slice(0,3)} ${d.getUTCDate()}`;}
+function fmtTable(s){const d=new Date(ms(s));return `${MON[d.getUTCMonth()].slice(0,3)} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;}
+function tminus(off){return off===0?"DROP":off<0?`T−${-off}`:`T+${off}`;}
+function weekLabel(off){if(off===0)return "Drop day";return off<0?`Week −${Math.ceil(-off/7)}`:`Week +${Math.ceil(off/7)}`;}
+function timeNow(){const d=new Date();return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;}
+
+/* ---------------- Helpers ---------------- */
+const $ = (s,r=document)=>r.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pname = p => PLATFORMS[p]?.name || p;
+const isSocial = p => PLATFORMS[p]?.kind==="social";
+const clen = s => [...String(s||"")].length;
+function sanitizeTag(s){return String(s||"").normalize("NFKD").replace(/[^\p{L}\p{N}]+/gu," ").trim().split(/\s+/).filter(Boolean).map(w=>w[0].toUpperCase()+w.slice(1)).join("");}
+function typeWord(t){return t==="EP"?"EP":t;}
+class Halt extends Error{constructor(step,msg,code){super(msg);this.step=step;this.code=code;}}
+
+/* ---------------- State ---------------- */
+let sampleFn = null, downloadsApi = null, claudeChecked = false;
+let state = freshState();
+function freshState(){
+  return {status:"idle", at:null, stages:{}, timeline:null, posts:[], drafts:{}, review:null, round:0,
+          log:[], approvedBy:null, approvedAt:null, error:null, inputs:null, execMode:null, replanNotes:null,
+          offline:false, activity:"", editing:false, voice:null, rejectOpen:false, exportText:""};
+}
+let ctl = null;
+
+function save(){
+  try{
+    const {editing, rejectOpen, ...rest} = state;
+    localStorage.setItem(STORE_KEY, JSON.stringify({state:rest, brief:readBrief()}));
+  }catch(e){}
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY); if(!raw) return null;
+    return JSON.parse(raw);
+  }catch(e){return null;}
+}
+
+/* ---------------- Brief form ---------------- */
+function buildPlatformChips(){
+  $("#f-platforms").innerHTML = Object.entries(PLATFORMS).map(([k,v])=>
+    `<label class="chip-toggle"><input type="checkbox" id="pf-${k}" value="${k}"><span>${esc(v.name)}</span></label>`).join("");
+}
+function exampleBrief(){
+  return {artist:"Mara Vey", title:"Glasshouse", type:"single", date:addDays(todayISO(),35),
+    vibe:"dreamy synth-pop, soft and nostalgic", platforms:["instagram","tiktok","x","spotify"],
+    presave:"https://example.com/glasshouse-presave", stream:"", extra:"First release in two years.", before:4, after:1, example:true};
+}
+function writeBrief(b){
+  $("#f-artist").value=b.artist||""; $("#f-title").value=b.title||""; $("#f-type").value=b.type||"single";
+  $("#f-date").value=b.date||""; $("#f-vibe").value=b.vibe||""; $("#f-presave").value=b.presave||"";
+  $("#f-stream").value=b.stream||""; $("#f-extra").value=b.extra||"";
+  $("#f-before").value=b.before??4; $("#f-after").value=b.after??1;
+  for(const k of Object.keys(PLATFORMS)) $("#pf-"+k).checked=(b.platforms||[]).includes(k);
+  $("#exampleTag").hidden = !b.example;
+}
+function readBrief(){
+  const num=(v,d)=>{const n=parseInt(v,10);return Number.isFinite(n)?n:d;};
+  return {artist:$("#f-artist").value.trim(), title:$("#f-title").value.trim(), type:$("#f-type").value,
+    date:$("#f-date").value, vibe:$("#f-vibe").value.trim(),
+    platforms:Object.keys(PLATFORMS).filter(k=>$("#pf-"+k).checked),
+    presave:$("#f-presave").value.trim(), stream:$("#f-stream").value.trim(), extra:$("#f-extra").value.trim(),
+    before:Math.min(8,Math.max(1,num($("#f-before").value,4))), after:Math.min(2,Math.max(0,num($("#f-after").value,1))),
+    example:!$("#exampleTag").hidden};
+}
+function checkBrief(b){
+  const miss=[];
+  if(!b.artist) miss.push("Artist name is missing.");
+  if(!b.title) miss.push("Release title is missing.");
+  if(!b.vibe) miss.push("Genre / vibe is missing.");
+  if(!b.platforms.length) miss.push("Pick at least one platform.");
+  if(!validISO(b.date)) miss.push("Release date is missing.");
+  else if(diffDays(todayISO(), b.date)<0) miss.push(`The release date (${fmtLong(b.date)}) has already passed. Pick a new date.`);
+  for(const [k,l] of [["presave","Pre-save link"],["stream","Streaming link"]]){
+    if(b[k] && !/^https?:\/\/\S+\.\S+/.test(b[k])) miss.push(`${l} must start with http:// or https://.`);
+  }
+  return miss;
+}
+function setBriefLocked(lock){
+  for(const el of $("#brief").querySelectorAll("input,select,textarea")) el.disabled=lock;
+}
+
+/* ---------------- Planner Agent ---------------- */
+function pickPlatforms(pref, user){
+  const social = user.filter(isSocial);
+  let p = pref.filter(x=>user.includes(x));
+  if(!p.length) p = social.slice(0,3);
+  return p;
+}
+function makeRow(m, inp, off){
+  const date = addDays(inp.date, off);
+  const platforms = pickPlatforms(m.pf, inp.platforms);
+  const tasks = {};
+  for(const [p,t] of Object.entries(m.tasks||{})) if(inp.platforms.includes(p)){ tasks[p]=t; if(!platforms.includes(p)) platforms.push(p); }
+  let notes = m.notes;
+  if(m.link==="presave" && !inp.presave) notes += " Pre-save link: [LINK].";
+  if(m.link==="stream" && !inp.stream) notes += " Streaming link: [LINK].";
+  return {key:m.key, off, date, day:dow(date), week:weekLabel(off), label:m.label, platforms, tasks, notes, link:m.link||null};
+}
+function planTimeline(inp){
+  const today = todayISO();
+  const left = diffDays(today, inp.date);
+  const warnings = [];
+  if(left<0) throw new Halt("Plan", `The release date ${fmtLong(inp.date)} has already passed. Pick a new date.`);
+  let rows = [];
+  let mode = "standard";
+  if(left<7){
+    mode = "emergency";
+    warnings.push(`Only ${left} day${left===1?"":"s"} until release. This is a short emergency plan: announce now, push the pre-save, then focus on drop day.`);
+    if(left>=1){
+      rows.push(makeRow({key:"surprise",label:"Surprise announcement + pre-save",pf:SOCIAL_ALL,tasks:PRE[4].tasks,notes:"Short-notice announcement with the release date and pre-save link.",link:"presave"},inp,-left));
+      if(left>=3) rows.push(makeRow(PRE[8],inp,-1));
+    }
+  } else {
+    const N = inp.before;
+    let prev = -Infinity;
+    const scaled = PRE.map(m=>{let o=Math.min(-1,Math.round(m.off*N/4)); if(o<prev) o=prev; prev=o; return {m,o};});
+    const W = Math.floor(left/7);
+    const kept = scaled.filter(({o})=>Math.ceil(-o/7)<=W && addDays(inp.date,o)>=today);
+    if(kept.length<scaled.length){
+      mode="shortened";
+      const dropped=[...new Set(scaled.filter(s=>!kept.includes(s)).map(s=>weekLabel(s.o)))];
+      warnings.push(`Only ${left} days until release, less than the ${N}-week plan. Dropped the earliest weeks (${dropped.join(", ")}).`);
+      if(!kept.some(k=>k.m.key==="presave")) warnings.push("The pre-save milestone fell in a dropped week. Mention the pre-save link in the next post.");
+    }
+    rows = kept.map(({m,o})=>makeRow(m,inp,o));
+  }
+  for(const m of DROP) rows.push(makeRow(m,inp,0));
+  for(const m of POST) if((m.wk||1)<=inp.after) rows.push(makeRow(m,inp,m.off));
+  rows.forEach((r,i)=>r.id="M"+pad(i+1));
+  if(!inp.platforms.some(isSocial)) warnings.push("No social platforms picked, so the plan has tasks only and no posts to write.");
+  return {rows, mode, warnings, checklist:dropChecklist(inp)};
+}
+function dropChecklist(inp){
+  const has=p=>inp.platforms.includes(p);
+  const social=inp.platforms.filter(isSocial).map(pname);
+  const L=[`Check ${inp.title} is live on every streaming service at release time.`];
+  if(has("instagram")||has("tiktok")) L.push("Swap the link in bio from the pre-save link to the streaming link.");
+  if(social.length) L.push(`Publish the release post on ${social.join(", ")} and pin it.`);
+  if(has("spotify")) L.push("Spotify: set the release as Artist Pick and upload a Canvas.");
+  if(has("apple")) L.push("Apple Music: confirm the release page and artist image.");
+  if(has("instagram")||has("facebook")) L.push("Post stories with a link sticker; reshare fan stories.");
+  L.push("Reply to fan comments for the first two hours.");
+  L.push("Post the evening thank-you.");
+  L.push("Replace every [LINK] and [TO BE CONFIRMED] before posting.");
+  return L;
+}
+function rowsToPosts(rows){
+  const posts=[]; let n=0;
+  for(const r of rows){
+    for(const p of r.platforms) if(isSocial(p)) posts.push({id:"P"+pad(++n), rowId:r.id, platform:p, date:r.date, day:r.day, off:r.off, label:r.label, notes:r.notes, key:r.key, link:r.link});
+  }
+  return posts;
+}
+
+/* Orchestrator Step 3 check */
+function validateTimeline(rows, inp){
+  const probs=[]; const today=todayISO();
+  if(!rows.length) probs.push("The timeline is empty.");
+  let prev=null;
+  for(const r of rows){
+    if(!validISO(r.date)){probs.push(`${r.label}: missing or invalid date.`);continue;}
+    if(r.day!==dow(r.date)) probs.push(`${r.label}: ${r.date} is a ${dow(r.date)}, not a ${r.day}.`);
+    if(!r.platforms?.length) probs.push(`${r.label}: no platform.`);
+    const bad=(r.platforms||[]).filter(p=>!inp.platforms.includes(p));
+    if(bad.length) probs.push(`${r.label}: uses ${bad.map(pname).join(", ")}, which is not in your platforms.`);
+    if(r.date<today) probs.push(`${r.label}: ${fmtTable(r.date)} is in the past.`);
+    if(prev && r.date<prev) probs.push(`${r.label}: dates are out of order.`);
+    prev=r.date;
+  }
+  if(!rows.some(r=>r.date===inp.date && r.off===0)) probs.push(`No drop day milestone on the release date (${fmtLong(inp.date)}).`);
+  return probs;
+}
+
+/* ---------------- Claude calls ---------------- */
+async function askJSON(prompt, step, label){
+  ctl = new AbortController();
+  setActivity(label, "Thinking…");
+  try{
+    return await sampleFn.json(prompt,{signal:ctl.signal, modelTier:"default",
+      onText:({text})=>setActivityDetail(`${clen(text).toLocaleString()} characters written`)});
+  }catch(e){
+    const code=e?.code||"error";
+    const msgs={cancelled:"You stopped this step.", not_granted:"Claude access was declined for this page.",
+      rate_limited:"Claude is rate-limited right now. Wait a minute, then retry.", invalid_json:"The agent's reply could not be read as data.",
+      refused:"Claude declined this request.", empty_completion:"The agent returned nothing.", prompt_too_large:"The request was too large."};
+    throw new Halt(step, `${label}: ${e?.message||msgs[code]||"the agent failed."}`, code);
+  }finally{ ctl=null; setActivityDetail(""); }
+}
+const useClaude = () => !!sampleFn && !state.offline;
+
+function factsBlock(inp){
+  return `CAMPAIGN FACTS (the only facts you may use):
+- Artist: ${inp.artist}
+- Release title: ${inp.title}
+- Release type: ${typeWord(inp.type)}
+- Release date: ${fmtLong(inp.date)}
+- Genre / vibe: ${inp.vibe}
+- Platforms: ${inp.platforms.map(pname).join(", ")}
+- Pre-save link: ${inp.presave || "[LINK] (missing: write [LINK] where it belongs)"}
+- Streaming link: ${inp.stream || "[LINK] (missing: write [LINK] where it belongs)"}
+- Other facts the artist gave: ${inp.extra || "(none)"}`;
+}
+const COPY_RULES = `RULES
+- Use only the campaign facts. Do not invent awards, chart positions, stream/view/follower counts, quotes, collaborators, features, tour dates or anything else.
+- Do not write lyrics or anything that reads like song lyrics. Do not name unreleased tracks; only the release title is allowed.
+- No personal information (addresses, phone numbers, emails, private details).
+- Keep one consistent tone across the whole campaign that fits the genre / vibe.
+- Title, release type, release date, artist name must match the facts exactly. Only mention the release date or this post's own date; never other dates. Only mention a weekday if it is the release day's weekday.
+- Links: before release use the pre-save link, from release day on use the streaming link. If a link is missing write [LINK]. On Instagram and TikTok, links in captions are not clickable: never paste a URL there, say "link in bio" instead (on Instagram stories you may say "tap the link sticker").
+- Hook = one strong first line, no line breaks. Caption = the body after the hook (do not repeat the hook). Hashtags = 3 to 5 relevant, distinct hashtags, each starting with #, no spaces, not repeated in the caption.
+- Respect platform length limits for the whole post (hook + blank line + caption + blank line + hashtags).`;
+function platformNotes(inp){
+  const lines={instagram:"Instagram: max 2,200 characters; links not clickable (say link in bio).",
+    tiktok:"TikTok: keep it short (under 300 characters is best); links not clickable (say link in bio).",
+    x:"X: the WHOLE post must be at most 280 characters including hashtags, and any URL counts as 23. Keep the caption under 150 characters and use exactly 3 hashtags.",
+    threads:"Threads: max 500 characters.", facebook:"Facebook: keep under 500 characters.", youtube:"YouTube (Shorts / community post): keep under 500 characters."};
+  return "PLATFORM NOTES\n"+inp.platforms.filter(isSocial).map(p=>"- "+lines[p]).join("\n");
+}
+function postSpec(p, inp){
+  const phase = p.off<0?"before release":p.off===0?"release day":"after release";
+  const link = p.link==="presave"?(inp.presave||"[LINK]"):p.link==="stream"?(inp.stream||"[LINK]"):null;
+  return {id:p.id, date:fmtLong(p.date), milestone:p.label, platform:pname(p.platform), phase, notes:p.notes, ...(link?{link_to_use:link}:{})};
+}
+function normDraft(raw, p){
+  let tags = Array.isArray(raw?.hashtags)?raw.hashtags:String(raw?.hashtags||"").split(/[\s,]+/);
+  tags = tags.map(t=>String(t).trim()).filter(Boolean).map(t=>t.startsWith("#")?t:"#"+t).map(t=>t.replace(/\s+/g,""));
+  return {id:p.id, hook:String(raw?.hook||"").trim(), caption:String(raw?.caption||"").trim(), hashtags:tags};
+}
+
+/* ---------------- Execution Agent ---------------- */
+async function ensureVoice(inp){
+  if(state.voice || !useClaude()) return;
+  const v = await askJSON(`You are the Execution Agent (copywriter) for a music release campaign. Before writing posts, set the campaign voice.
+${factsBlock(inp)}
+
+Reply with only JSON: {"voice":"2-3 sentences describing the tone every post will keep, matching the genre / vibe","hashtag_pool":["6 to 8 relevant hashtags built only from the facts (artist, title, genre, release phase)"]}`, "Execute", "Execution Agent setting the campaign voice");
+  state.voice = {voice:String(v?.voice||""), pool:Array.isArray(v?.hashtag_pool)?v.hashtag_pool.map(String).slice(0,8):[]};
+  addLog("Execute","Execution Agent","Set campaign voice: "+state.voice.voice);
+}
+async function runExecution(mode, payload){
+  const inp = state.inputs;
+  let targets = state.posts;
+  if(mode==="fix") targets = state.posts.filter(p=>payload.byId[p.id]);
+  if(!targets.length) return;
+  if(!useClaude()){ offlineExecute(mode, targets, payload); return; }
+  await ensureVoice(inp);
+  const CH = 8;
+  for(let i=0;i<targets.length;i+=CH){
+    const chunk = targets.slice(i,i+CH);
+    const what = mode==="fresh"?"drafting":mode==="fix"?"fixing":"revising";
+    const label = `Execution Agent ${what} posts ${i+1}–${i+chunk.length} of ${targets.length}`;
+    let task;
+    if(mode==="fresh"){
+      task = `POSTS TO WRITE (one per item):\n${JSON.stringify(chunk.map(p=>postSpec(p,inp)),null,1)}`;
+    } else if(mode==="fix"){
+      task = `REVIEWER NOTES. Rewrite ONLY to fix the listed problems; keep everything else about each post the same.\n${JSON.stringify(chunk.map(p=>({...postSpec(p,inp), current:state.drafts[p.id], problems:payload.byId[p.id]})),null,1)}`;
+    } else {
+      task = `HUMAN REVIEWER NOTES (apply them to every post where they are relevant; keep the rest):\n"""${payload.notes}"""\n\nPOSTS:\n${JSON.stringify(chunk.map(p=>({...postSpec(p,inp), current:state.drafts[p.id]})),null,1)}`;
+    }
+    const prompt = `You are the Execution Agent (copywriter) in a music release campaign engine. You write social posts for each milestone of the release timeline.
+${factsBlock(inp)}
+
+CAMPAIGN VOICE: ${state.voice?.voice||inp.vibe}
+HASHTAG POOL (prefer these): ${(state.voice?.pool||[]).join(" ")}
+
+${COPY_RULES}
+
+${platformNotes(inp)}
+
+${task}
+
+Reply with only a JSON array, one object per post, same ids: [{"id":"P01","hook":"…","caption":"…","hashtags":["#A","#B","#C"]}]`;
+    const out = await askJSON(prompt, "Execute", label);
+    const arr = Array.isArray(out)?out:Array.isArray(out?.posts)?out.posts:[];
+    const got = new Map(arr.filter(o=>o&&o.id).map(o=>[String(o.id),o]));
+    const missing = chunk.filter(p=>!got.has(p.id) || !String(got.get(p.id).hook||got.get(p.id).caption||"").trim());
+    if(missing.length) throw new Halt("Execute", `The Execution Agent returned nothing for ${missing.map(p=>p.id).join(", ")}.`);
+    for(const p of chunk) state.drafts[p.id] = normDraft(got.get(p.id), p);
+    renderPosts(); save();
+  }
+}
+
+/* Offline copywriter: rule-following templates used when Claude is not available */
+function toneOf(v){v=v.toLowerCase();
+  if(/soft|dream|chill|mellow|lo-?fi|acoustic|calm|gentle|ambient|tender|nostalg|ballad|folk/.test(v))return 0;
+  if(/loud|bold|hype|energ|hard|aggress|punk|metal|trap|drill|rock|banger|fierce|edm|dance|rap/.test(v))return 1;
+  return 2;}
+const HOOKS = {
+  announce:["Been quiet for a while. Not for much longer.","WE'RE BACK.","Something new is on the way."],
+  tease:["A little piece of what's coming.","You're not ready for this one.","First look. Sound on."],
+  clip:["Press play. Just a few seconds for now.","Turn it UP. Your first taste.","Your first listen of {title}."],
+  coverhint:["Can you see it yet?","Zoom in. Guess the cover.","A corner of the cover. The rest soon."],
+  presave:["{title} is almost here.","PRE-SAVE IS LIVE.","Pre-save {title} today."],
+  cover:["Here it is: the cover for {title}.","THE COVER. {title}.","Meet the cover of {title}."],
+  bts:["How {title} came together.","Behind the scenes. No filter.","Inside the making of {title}."],
+  count3:["Three more days.","3 DAYS. Get ready.","3 days until {title}."],
+  count1:["Tomorrow.","TOMORROW.","{title} is out tomorrow."],
+  release:["{title} is out now.","IT'S OUT. {title} is everywhere now.","{title} is out now."],
+  stories:["Out now. Tap the link sticker.","OUT NOW. Tap the sticker.","{title} is out now. Tap the link sticker."],
+  thanks0:["Thank you for listening today.","WHAT A DAY. Thank you.","Thank you for the love today."],
+  reactions:["Your reactions mean everything.","YOUR REACTIONS. All of them.","Seeing your reactions to {title}."],
+  thanks1:["A few days with {title}. Thank you.","THANK YOU for every listen.","Thank you for listening to {title}."],
+  week2:["Two weeks with {title}.","TWO WEEKS IN.","Two weeks of {title}."],
+  spin:["Keep {title} close.","KEEP IT LOUD.","Keep {title} in your rotation."],
+  surprise:["Surprise. Something new is almost here.","SURPRISE. New music this week.","Surprise: new music this week."]
+};
+const CAPS = {
+  announce:"New music from {artist} is on the way. {extra}Stay close.",
+  tease:"A small piece of the new {type} from {artist}. More soon.",
+  clip:"A first listen of {title}, the new {type} from {artist}.",
+  coverhint:"Part of the cover for {title}. Full reveal soon.",
+  presave:"Pre-save {title}, the new {type} from {artist}, out {date}. {link}",
+  cover:"The cover for {title}. Out {date}. {link}",
+  bts:"Behind the scenes of {title}, the new {type} from {artist}.",
+  count3:"{title} is out {date}. Pre-save now. {link}",
+  count1:"{title} is out tomorrow. Last chance to pre-save. {link}",
+  release:"{title}, the new {type} from {artist}, is out now. Listen: {link}",
+  stories:"{title} is out now. {link}",
+  thanks0:"Thank you for listening to {title} today. This one means a lot.",
+  reactions:"Thank you for sharing how {title} feels to you. Keep tagging {artist}.",
+  thanks1:"Thank you for listening to {title}. Listen and share: {link}",
+  week2:"Thank you for two weeks with {title}.",
+  spin:"Keep {title} in your playlists. {link}",
+  surprise:"{title}, a new {type} from {artist}, is out {date}. Pre-save now. {link}"
+};
+function fill(t, p, inp){
+  const L = p.link==="presave"?(inp.presave||"[LINK]"):p.link==="stream"?(inp.stream||"[LINK]"):"";
+  let link = "";
+  if(p.link){ link = PLATFORMS[p.platform].clickable ? L : (p.key==="stories"?"Tap the link sticker.":"Link in bio."); }
+  return t.replace(/\{title\}/g,inp.title).replace(/\{artist\}/g,inp.artist).replace(/\{type\}/g,typeWord(inp.type))
+    .replace(/\{date\}/g,fmtShort(inp.date)).replace(/\{extra\}/g,"").replace(/\{link\}/g,link)
+    .replace(/Listen: (Link in bio\.|Tap the link sticker\.)/,"$1").replace(/Listen and share: (Link in bio\.)/,"Listen and share. $1").replace(/\s+/g," ").trim();
+}
+function templateDraft(p, inp){
+  const tone = toneOf(inp.vibe);
+  const key = HOOKS[p.key]?p.key:null;
+  let hook = key?fill(HOOKS[key][tone],p,inp):fill(p.label,p,inp);
+  let caption = key?fill(CAPS[key],p,inp):fill(`${p.label}: {title}, the new {type} from {artist}. {link}`,p,inp);
+  const phaseTag = p.off<0?(p.link==="presave"?"#PreSave":"#ComingSoon"):"#OutNow";
+  let tags = [sanitizeTag(inp.artist), sanitizeTag(inp.title), phaseTag.slice(1), sanitizeTag(inp.vibe.split(/[,/;]/)[0]), "NewMusic"]
+    .filter(Boolean).map(t=>"#"+t);
+  tags = [...new Map(tags.map(t=>[t.toLowerCase(),t])).values()];
+  tags = tags.slice(0, p.platform==="x"?3:4);
+  while(tags.length<3) tags.push(["#NewMusic","#Music","#NewRelease"].find(t=>!tags.includes(t)));
+  const d = {id:p.id, hook, caption, hashtags:tags};
+  if(p.platform==="x"){ while(xLen(composeText(d))>280 && d.caption.length>40){ d.caption = d.caption.replace(/\s*[^.]*\.?\s*$/,"").trim() || d.caption.slice(0,100); } }
+  return d;
+}
+function offlineExecute(mode, targets, payload){
+  for(const p of targets) state.drafts[p.id] = templateDraft(p, state.inputs);
+  const msg = mode==="fix" ? `Regenerated ${targets.length} flagged post(s) from rule-following templates (offline mode cannot apply free-text notes).`
+            : `Drafted ${targets.length} post(s) from templates (offline mode).`;
+  addLog("Execute","Execution Agent",msg);
+}
+
+/* ---------------- Review & Compliance Agent ---------------- */
+function composeText(d){return [d.hook,d.caption,(d.hashtags||[]).join(" ")].filter(Boolean).join("\n\n");}
+function xLen(t){return clen(String(t).replace(/https?:\/\/\S+/g,"x".repeat(23)));}
+function postLen(p,d){const t=composeText(d);return PLATFORMS[p.platform].xcount?xLen(t):clen(t);}
+const MONRE = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?\b|\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/gi;
+function mentionedDates(text, near){
+  const out=[]; let m; MONRE.lastIndex=0;
+  while((m=MONRE.exec(text))){
+    const mon=(m[1]||m[4]).slice(0,3).toLowerCase(), day=+(m[2]||m[3]);
+    const mi=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"].indexOf(mon);
+    if(mi<0||day<1||day>31) continue;
+    const y0=+near.slice(0,4); let best=null;
+    for(const y of [y0-1,y0,y0+1]){const s=`${y}-${pad(mi+1)}-${pad(day)}`; if(!validISO(s))continue; if(!best||Math.abs(diffDays(s,near))<Math.abs(diffDays(best,near)))best=s;}
+    if(best) out.push({raw:m[0],iso:best});
+  }
+  return out;
+}
+function allowedFact(word, inp){return (inp.extra+" "+inp.title+" "+inp.artist+" "+inp.vibe).toLowerCase().includes(word.toLowerCase());}
+function deterministicReview(inp){
+  const fixes=[], open=new Map();
+  const add=(id,check,note)=>fixes.push({id,check,note});
+  const links=[inp.presave,inp.stream].filter(Boolean);
+  for(const p of state.posts){
+    const d=state.drafts[p.id];
+    if(!d){add(p.id,"Facts","No draft for this post.");continue;}
+    const text=composeText(d), body=[d.hook,d.caption].join("\n");
+    if(!d.hook) add(p.id,"Facts","Hook is empty.");
+    if(/\n/.test(d.hook)) add(p.id,"Platform rules","Hook must be a single first line.");
+    if(!d.caption) add(p.id,"Facts","Caption is empty.");
+    if(!inp.platforms.includes(p.platform)) add(p.id,"Platform rules",`${pname(p.platform)} is not one of your platforms.`);
+    // hashtags
+    const tags=d.hashtags||[];
+    if(tags.length<3||tags.length>5) add(p.id,"Hashtags",`Has ${tags.length} hashtags; needs 3 to 5.`);
+    const lower=tags.map(t=>t.toLowerCase());
+    if(new Set(lower).size!==lower.length) add(p.id,"Hashtags","Repeated hashtag.");
+    const badTag=tags.find(t=>!/^#[\p{L}\p{N}_]+$/u.test(t));
+    if(badTag) add(p.id,"Hashtags",`"${badTag}" is not a valid hashtag.`);
+    const extraTags=(body.match(/#[\p{L}\p{N}_]+/gu)||[]).length;
+    if(tags.length+extraTags>5) add(p.id,"Hashtags",`${tags.length+extraTags} hashtags in total counting the caption; keep it to 5 or fewer.`);
+    // length
+    const lim=PLATFORMS[p.platform].limit, len=postLen(p,d);
+    if(len>lim) add(p.id,"Length",`${len} characters; ${pname(p.platform)} allows ${lim}.`);
+    // links
+    const urls=text.match(/\bhttps?:\/\/[^\s)\]]+|\bwww\.[^\s)\]]+/gi)||[];
+    for(const u of urls){
+      const clean=u.replace(/[.,!?;:]+$/,"");
+      if(!PLATFORMS[p.platform].clickable) add(p.id,"Links",`Links are not clickable in ${pname(p.platform)} captions. Remove the URL and point to the link in bio.`);
+      else if(!links.includes(clean)) add(p.id,"Links",`Link ${clean} is not one you gave.`);
+      if(p.off<0 && inp.stream && clean===inp.stream) add(p.id,"Links","Uses the streaming link before release; use the pre-save link.");
+      if(p.off>=0 && inp.presave && clean===inp.presave) add(p.id,"Links","Uses the pre-save link after release; use the streaming link.");
+    }
+    // facts: release type
+    const typeHits=[];
+    if(/\balbum\b/i.test(body)) typeHits.push("album");
+    if(/\bEPs?\b/.test(body)) typeHits.push("EP");
+    if(/\bmixtape\b/i.test(body)) typeHits.push("mixtape");
+    if(/\bsingle\b/i.test(body.replace(/\b(every|a|one|not a) single\b/gi,"").replace(/\bsingle (one|day|time|moment|thing|note|word|listen|person)\b/gi,""))) typeHits.push("single");
+    for(const t of typeHits) if(t.toLowerCase()!==inp.type.toLowerCase()) add(p.id,"Facts",`Calls the release a ${t}; it is a ${typeWord(inp.type)}.`);
+    // dates and weekdays
+    for(const m of mentionedDates(body, inp.date)) if(m.iso!==inp.date && m.iso!==p.date) add(p.id,"Facts",`Mentions "${m.raw}", which is not the release date (${fmtShort(inp.date)}).`);
+    const wd=(body.match(/\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?\b/gi)||[]);
+    for(const w of wd){const W=w.replace(/s$/i,"");const ok=[dow(inp.date),p.day].some(x=>x.toLowerCase()===W.toLowerCase()); if(!ok) add(p.id,"Facts",`Mentions ${w}, but the release is on a ${dow(inp.date)}.`);}
+    // invented claims
+    const claim=body.match(/\b\d[\d,.]*\s*(k|m|million|thousand|billion)?\s*(streams|plays|views|followers|listeners|downloads|sales)\b|\b(grammy|award|billboard|chart(?:s|ed|ing)?|platinum|gold record|number one|#1|top \d+|sold[- ]out)\b/i);
+    if(claim && !allowedFact(claim[0],inp)) add(p.id,"Facts",`"${claim[0]}" is a claim you did not give.`);
+    // privacy
+    if(/[\w.+-]+@[\w-]+\.[\w.]+/.test(body)) add(p.id,"Privacy & safety","Contains an email address.");
+    if(/\+?\d[\d\s().-]{8,}\d/.test(body.replace(/https?:\/\/\S+/g,""))) add(p.id,"Privacy & safety","Contains what looks like a phone number.");
+    if(/\b\d{1,5}\s+\w+(\s\w+)?\s+(street|st|avenue|ave|road|rd|boulevard|blvd|lane|ln)\b/i.test(body)) add(p.id,"Privacy & safety","Contains what looks like a street address.");
+    const quotes=body.match(/["“”]([^"“”]{2,80})["“”]/g)||[];
+    for(const q of quotes){const inner=q.slice(1,-1).trim(); if(inner.toLowerCase()!==inp.title.toLowerCase() && inner.toLowerCase()!==inp.artist.toLowerCase()) add(p.id,"Privacy & safety",`Quoted text "${inner}" may be a lyric or an unreleased track name.`);}
+    // placeholders
+    for(const ph of ["[LINK]","[TO BE CONFIRMED]"]) if(text.includes(ph)){ if(!open.has(ph)) open.set(ph,[]); open.get(ph).push(p.id); }
+  }
+  return {fixes, open};
+}
+async function llmReview(inp){
+  if(!useClaude()) return null;
+  const list = state.posts.map(p=>({id:p.id, platform:pname(p.platform), date:fmtLong(p.date), milestone:p.label, text:composeText(state.drafts[p.id]||{})}));
+  const out = await askJSON(`You are the Review & Compliance Agent for a music release campaign. Audit the drafted posts against the facts. Be strict: if unsure whether something is a problem, flag it.
+${factsBlock(inp)}
+
+Check every post for:
+- Facts: any claim not in the facts (awards, charts, numbers, quotes, collaborators, features, tours, events), or a wrong title, artist, release type or date.
+- Tone: does not fit the genre / vibe "${inp.vibe}", or sounds inconsistent with the rest of the campaign.
+- Privacy: lyrics or text that reads like song lyrics, unreleased track names (only the release title is allowed), personal information.
+- Hashtags: irrelevant, spammy or off-topic hashtags.
+- Misleading: misleading or clickbait text.
+Placeholders [LINK] and [TO BE CONFIRMED] are allowed: never flag them. Do not rewrite anything.
+
+POSTS:
+${JSON.stringify(list,null,1)}
+
+Reply with only JSON: {"fixes":[{"id":"P01","check":"Facts|Tone|Privacy|Hashtags|Misleading","note":"short reason"}],"open_items":["questions only the human can decide"]}. Use an empty fixes array if every post passes.`, "Check", "Review & Compliance Agent auditing posts");
+  const map={facts:"Facts",tone:"Tone",privacy:"Privacy & safety",hashtags:"Hashtags",misleading:"Platform rules"};
+  const ids=new Set(state.posts.map(p=>p.id));
+  const fixes=(Array.isArray(out?.fixes)?out.fixes:[]).filter(f=>f&&ids.has(String(f.id))).map(f=>({id:String(f.id),check:map[String(f.check||"").toLowerCase()]||"Facts",note:String(f.note||"Flagged by reviewer.")}))
+    .filter(f=>!/\[LINK\]|\[TO BE CONFIRMED\]/.test(f.note) || /not|wrong|missing/i.test(f.note.replace(/\[LINK\]|\[TO BE CONFIRMED\]/g,"")));
+  const openItems=(Array.isArray(out?.open_items)?out.open_items:[]).map(String).filter(Boolean).slice(0,8);
+  return {fixes, openItems};
+}
+const CATS=["Timeline dates","Facts","Tone","Privacy & safety","Hashtags","Length","Links","Platform rules"];
+async function runReview(){
+  const inp=state.inputs;
+  if(!inp) throw new Halt("Check","The original inputs are missing, so facts cannot be checked.");
+  const tl=validateTimeline(state.timeline.rows, inp);
+  const det=deterministicReview(inp);
+  const llm=await llmReview(inp);
+  const fixes=[...det.fixes, ...(llm?.fixes||[])];
+  // dedupe identical notes
+  const seen=new Set(); const uniq=fixes.filter(f=>{const k=f.id+"|"+f.note;if(seen.has(k))return false;seen.add(k);return true;});
+  const cats=CATS.map(name=>{
+    if(name==="Timeline dates") return {name,result:tl.length?"FIX":"PASS",note:tl.length?tl.join(" "):"Dates in order, weekdays correct, drop day = release date."};
+    const hits=uniq.filter(f=>f.check===name);
+    if(name==="Tone" && !llm) return {name,result:"NOT CHECKED",note:"Tone needs Claude. Check it yourself before approving."};
+    return {name,result:hits.length?"FIX":"PASS",note:hits.length?`${hits.length} post${hits.length>1?"s":""}: ${hits.slice(0,2).map(h=>h.id+" "+h.note).join(" · ")}${hits.length>2?" …":""}`:"No problems found."};
+  });
+  const openItems=[];
+  for(const [ph,ids] of det.open) openItems.push(`${ph} placeholder in ${ids.length} post${ids.length>1?"s":""} (${ids.slice(0,6).join(", ")}${ids.length>6?"…":""}).`);
+  const tlOpen=state.timeline.rows.filter(r=>/\[TO BE CONFIRMED\]/.test(r.notes+Object.values(r.tasks||{}).join(" ")));
+  if(tlOpen.length) openItems.push(`[TO BE CONFIRMED] in timeline: ${tlOpen.map(r=>r.label).join(", ")}.`);
+  if(!llm) openItems.push("Tone, invented facts and lyric-like lines were checked by rules only. Read the posts before approving.");
+  for(const o of (llm?.openItems||[])) openItems.push(o);
+  const status = cats.some(c=>c.result==="FIX")?"NEEDS FIX":"PASS";
+  const byId={}; for(const f of uniq){(byId[f.id]=byId[f.id]||[]).push(`${f.check}: ${f.note}`);}
+  if(tl.length) throw new Halt("Check","Timeline check failed: "+tl.join(" "));
+  return {status, cats, fixes:uniq, byId, openItems, llm:!!llm, round:state.round};
+}
+
+/* ---------------- Orchestrator ---------------- */
+function addLog(step, agent, result, by){
+  state.log.push({time:new Date().toISOString(), clock:timeNow(), step, agent, result, by:by||"—"});
+  renderLog();
+}
+function setStage(k,s){state.stages[k]=s; renderChain();}
+function setActivity(text, detail){state.activity=text; renderActivity(); if(detail!==undefined) setActivityDetail(detail);}
+function setActivityDetail(t){const el=$("#actDetail"); if(el) el.textContent=t;}
+
+const FLOW = {
+  async plan(){
+    setStage("plan","running"); setActivity("Planner Agent building the timeline");
+    if(state.replanNotes){
+      if(!useClaude()) throw new Halt("Plan","Timeline notes need Claude. Change the brief and run the campaign again instead.");
+      state.timeline = await revisePlan(state.inputs, state.timeline, state.replanNotes);
+      addLog("Plan","Planner Agent",`Revised the timeline from your notes: ${state.timeline.rows.length} milestones.`);
+      state.replanNotes=null;
+    } else {
+      state.timeline = planTimeline(state.inputs);
+      addLog("Plan","Planner Agent",`Built a ${state.timeline.mode} timeline: ${state.timeline.rows.length} milestones from ${fmtTable(state.timeline.rows[0].date)} to ${fmtTable(state.timeline.rows.at(-1).date)}.`+(state.timeline.warnings.length?" "+state.timeline.warnings.join(" "):""));
+    }
+    setStage("plan","done"); renderTimeline(); return "orchestrate";
+  },
+  async orchestrate(){
+    setStage("orchestrate","running"); setActivity("Orchestrator checking the timeline");
+    const probs=validateTimeline(state.timeline.rows, state.inputs);
+    if(probs.length) throw new Halt("Orchestrate","The timeline failed the check: "+probs.join(" "));
+    state.posts = rowsToPosts(state.timeline.rows);
+    for(const id of Object.keys(state.drafts)) if(!state.posts.some(p=>p.id===id)) delete state.drafts[id];
+    addLog("Orchestrate","Orchestrator",`Timeline passed (dates, weekdays, platforms, drop day = ${fmtShort(state.inputs.date)}). Bundled ${state.posts.length} posts for the Execution Agent.`);
+    setStage("orchestrate","done");
+    if(!state.posts.length){ addLog("Orchestrate","Orchestrator","No social posts to write; going straight to review."); }
+    return "execute";
+  },
+  async execute(){
+    setStage("execute","running");
+    const mode = state.execMode?.type || "fresh";
+    if(mode==="fresh") state.drafts={};
+    setActivity(mode==="human"?"Execution Agent applying your notes":"Execution Agent writing posts");
+    await runExecution(mode, state.execMode||{});
+    if(mode!=="human" || useClaude()) addLog("Execute","Execution Agent", mode==="human"?`Revised ${state.posts.length} posts from your notes.`:`Drafted ${state.posts.length} posts (hook, caption, hashtags).`);
+    state.execMode=null; state.round=0;
+    setStage("execute","done"); renderPosts(); return "check";
+  },
+  async check(){
+    while(true){
+      setStage("check","running"); setActivity(`Review & Compliance Agent checking (rewrite round ${state.round} of 2)`);
+      const r = await runReview(); state.review=r; renderReview(); renderPosts();
+      addLog("Check","Review & Compliance Agent",`${r.status}${r.fixes.length?` — ${r.fixes.length} fix${r.fixes.length>1?"es":""} on ${Object.keys(r.byId).length} post(s)`:""}. Round ${state.round}.`);
+      if(r.status==="PASS"){ setStage("check","done"); return "human"; }
+      if(state.round<2){
+        state.round++;
+        setStage("execute","running"); setActivity(`Execution Agent fixing ${Object.keys(r.byId).length} post(s), rewrite round ${state.round} of 2`);
+        await runExecution("fix",{byId:r.byId});
+        addLog("Execute","Execution Agent",`Rewrite round ${state.round}: fixed ${Object.keys(r.byId).length} post(s) from reviewer notes.`);
+        setStage("execute","done"); renderPosts(); continue;
+      }
+      setStage("check","fix");
+      addLog("Check","Orchestrator","Two rewrite rounds used. Sending the open problems to the human.");
+      return "human";
+    }
+  },
+  async human(){
+    state.status="awaiting"; setStage("human","waiting"); setActivity("Waiting for your approval. Nothing is exported until you approve.");
+    addLog("Human approval","Orchestrator","Sent timeline, posts, review result and open items to the human. Waiting.");
+    return null;
+  }
+};
+async function runFrom(stage){
+  state.status="running"; state.error=null; state.editing=false; state.rejectOpen=false;
+  setBriefLocked(true); renderAll();
+  try{
+    while(stage){ state.at=stage; save(); stage = await FLOW[stage](); }
+  }catch(e){
+    const h = e instanceof Halt ? e : new Halt(state.at||"Orchestrator", e?.message||String(e));
+    const key = (STAGES.find(s=>s.n.toLowerCase()===String(h.step).toLowerCase())||{}).k || state.at;
+    state.status="stopped"; state.error={stage:state.at, msg:h.message, code:h.code};
+    if(key) setStage(key,"error");
+    setActivity("Stopped. "+h.message);
+    addLog(h.step,"Orchestrator","STOPPED: "+h.message);
+  }
+  renderAll(); save();
+}
+function startCampaign(){
+  const b=readBrief(); const probs=checkBrief(b);
+  renderBriefErrors(probs);
+  if(probs.length){ setActivity("Waiting for the missing inputs in the brief."); return; }
+  const offline = state.offline;
+  state = freshState(); state.offline=offline; state.inputs={...b};
+  STAGES.forEach(s=>state.stages[s.k]="idle");
+  addLog("Collect inputs","Orchestrator",`Inputs complete: ${b.artist} — ${b.title} (${typeWord(b.type)}), ${fmtLong(b.date)}, ${b.platforms.map(pname).join(", ")}.${!b.presave||!b.stream?" Missing links will use [LINK].":""}`);
+  switchTab("timeline");
+  runFrom("plan");
+}
+async function revisePlan(inp, tl, notes){
+  const cur=tl.rows.map(r=>({date:r.date, milestone:r.label, platforms:r.platforms, notes:r.notes, tasks:r.tasks}));
+  const out = await askJSON(`You are the Planner Agent for a music release campaign. A human rejected the timeline with notes. Revise it.
+${factsBlock(inp)}
+Today is ${todayISO()}. Allowed platform codes: ${inp.platforms.join(", ")} (spotify/apple are task-only platforms; give them a task text in "tasks").
+
+CURRENT TIMELINE:
+${JSON.stringify(cur,null,1)}
+
+HUMAN NOTES:
+"""${notes}"""
+
+Constraints: never change the release date ${inp.date}; keep at least one milestone on ${inp.date} named like "Release day post"; no date before today; dates in order; use only the allowed platform codes; no lyrics or unreleased track names; write [TO BE CONFIRMED] for anything unknown.
+Reply with only a JSON array: [{"date":"YYYY-MM-DD","milestone":"…","platforms":["instagram"],"notes":"…","tasks":{"spotify":"…"}}]`, "Plan", "Planner Agent revising the timeline");
+  if(!Array.isArray(out)||!out.length) throw new Halt("Plan","The Planner Agent returned no timeline.");
+  const keyFor=label=>{const l=label.toLowerCase(); for(const m of [...PRE,...DROP,...POST]) if(m.label.toLowerCase()===l) return m; return null;};
+  const rows=out.map(o=>{
+    const date=String(o.date||""); const off=validISO(date)?diffDays(inp.date,date):NaN;
+    const label=String(o.milestone||"Milestone"); const base=keyFor(label);
+    const platforms=(Array.isArray(o.platforms)?o.platforms:[]).map(String).map(s=>s.toLowerCase().trim()).filter(p=>PLATFORMS[p]);
+    const tasks={}; for(const p of platforms) if(!isSocial(p)) tasks[p]=String(o.tasks?.[p]||"[TO BE CONFIRMED]");
+    return {key:base?.key||"custom", off, date, day:validISO(date)?dow(date):"", week:Number.isFinite(off)?weekLabel(off):"", label, platforms:[...new Set(platforms)], tasks, notes:String(o.notes||""), link:base?.link||(off<0?"presave":"stream")};
+  }).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+  rows.forEach((r,i)=>r.id="M"+pad(i+1));
+  return {rows, mode:"revised", warnings:[], checklist:dropChecklist(inp)};
+}
+
+/* Human gate actions */
+function approve(){
+  const name=$("#approver").value.trim();
+  if(!name){ $("#approverErr").hidden=false; $("#approver").focus(); return; }
+  state.approvedBy=name; state.approvedAt=new Date().toISOString();
+  setStage("human","done");
+  addLog("Human approval","Human","APPROVED"+(state.review?.status==="NEEDS FIX"?` with ${state.review.fixes.length} open problem(s) accepted`:""), name);
+  setStage("output","running");
+  const ph=state.review?.openItems?.filter(o=>/\[LINK\]|\[TO BE CONFIRMED\]/.test(o))||[];
+  addLog("Output","Orchestrator",`Export unlocked.${ph.length?" Placeholders still in the copy: "+ph.join(" "):" No placeholders left."} Nothing was posted.`, name);
+  setStage("output","done");
+  state.status="approved"; setActivity(`Approved by ${name}. Export the calendar and copy below.`);
+  renderAll(); save();
+}
+function reject(){
+  const notes=$("#rejNotes").value.trim(); const target=document.querySelector('input[name="rejTarget"]:checked')?.value;
+  if(!notes){ $("#rejErr").hidden=false; $("#rejNotes").focus(); return; }
+  const by=$("#approver").value.trim()||"Human";
+  addLog("Human approval","Human",`REJECTED (${target==="timeline"?"timeline":"copy"}): ${notes}`, by);
+  setStage("human","idle");
+  if(target==="timeline"){ state.replanNotes=notes; ["plan","orchestrate","execute","check"].forEach(k=>setStage(k,"idle")); runFrom("plan"); }
+  else { state.execMode={type:"human",notes}; ["execute","check"].forEach(k=>setStage(k,"idle")); runFrom("execute"); }
+}
+function submitEdits(){
+  let n=0;
+  for(const p of state.posts){
+    const card=document.querySelector(`[data-edit="${p.id}"]`); if(!card) continue;
+    const hook=card.querySelector(".e-hook").value.trim(), caption=card.querySelector(".e-cap").value.trim();
+    const tags=card.querySelector(".e-tags").value.split(/[\s,]+/).filter(Boolean).map(t=>t.startsWith("#")?t:"#"+t);
+    const d=state.drafts[p.id]||{};
+    if(hook!==d.hook||caption!==d.caption||tags.join(" ")!==(d.hashtags||[]).join(" ")){ state.drafts[p.id]={id:p.id,hook,caption,hashtags:tags}; n++; }
+  }
+  const by=$("#approver")?.value.trim()||"Human";
+  addLog("Human approval","Human",`EDITED ${n} post(s) directly. Sending the edited version to review.`, by);
+  state.editing=false; state.round=0; setStage("human","idle");
+  runFrom("check");
+}
+
+/* ---------------- Export ---------------- */
+function csvCell(v){v=String(v??"");return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v;}
+function buildCSV(){
+  const H=["Date","Day","Week","Milestone","Platform","Type","Hook","Caption","Hashtags","Notes"];
+  const L=[H.join(",")];
+  for(const r of state.timeline.rows){
+    for(const p of r.platforms){
+      if(isSocial(p)){const post=state.posts.find(x=>x.rowId===r.id&&x.platform===p); const d=state.drafts[post?.id]||{};
+        L.push([r.date,r.day,r.week,r.label,pname(p),"Post",d.hook,d.caption,(d.hashtags||[]).join(" "),r.notes].map(csvCell).join(","));}
+      else L.push([r.date,r.day,r.week,r.label,pname(p),"Task","",r.tasks[p]||"","",r.notes].map(csvCell).join(","));
+    }
+  }
+  return L.join("\n");
+}
+function buildMD(){
+  const i=state.inputs, out=[];
+  out.push(`# ${i.artist} — ${i.title} (${typeWord(i.type)}) release campaign`,"");
+  out.push(`Release date: ${fmtLong(i.date)}  `,`Genre / vibe: ${i.vibe}  `,`Platforms: ${i.platforms.map(pname).join(", ")}  `);
+  out.push(`Approved by ${state.approvedBy} on ${new Date(state.approvedAt).toLocaleString()}  `,`Review status at approval: ${state.review?.status||"n/a"}`,"");
+  out.push("## Calendar","","| Date | Day | Milestone | Platform | Notes |","|---|---|---|---|---|");
+  for(const r of state.timeline.rows) out.push(`| ${r.date} | ${r.day} | ${r.label} | ${r.platforms.map(pname).join(", ")} | ${(r.notes+" "+Object.entries(r.tasks).map(([p,t])=>pname(p)+": "+t).join("; ")).trim().replace(/\|/g,"/")} |`);
+  out.push("","## Drop Day Checklist","",...state.timeline.checklist.map(c=>"- [ ] "+c),"","## Posts","");
+  for(const p of state.posts){const d=state.drafts[p.id]||{};
+    out.push(`### ${p.date} (${p.day}) · ${pname(p.platform)} · ${p.label}`,"",`**Hook:** ${d.hook}`,"",d.caption,"",(d.hashtags||[]).join(" "),"");}
+  if(state.review?.openItems?.length) out.push("## Open items","",...state.review.openItems.map(o=>"- "+o),"");
+  out.push("## Activity log","","| Time | Step | Agent | Result | Approved by |","|---|---|---|---|---|");
+  for(const l of state.log) out.push(`| ${l.time} | ${l.step} | ${l.agent} | ${l.result.replace(/\|/g,"/").replace(/\n/g," ")} | ${l.by} |`);
+  return out.join("\n");
+}
+function buildJSON(){
+  return JSON.stringify({inputs:state.inputs, approvedBy:state.approvedBy, approvedAt:state.approvedAt, timeline:state.timeline,
+    posts:state.posts.map(p=>({...p, ...state.drafts[p.id]})), review:state.review, log:state.log},null,2);
+}
+async function doExport(kind){
+  if(state.status!=="approved") return;
+  const slug=sanitizeTag(state.inputs.artist+" "+state.inputs.title)||"campaign";
+  const map={csv:[`${slug}-calendar.csv`,buildCSV(),"text/csv"], md:[`${slug}-campaign.md`,buildMD(),"text/markdown"], json:[`${slug}-campaign.json`,buildJSON(),"application/json"]};
+  const [filename,data,type]=map[kind];
+  state.exportText=data;
+  const by=state.approvedBy;
+  if(downloadsApi){
+    try{ await downloadsApi.save({filename, data:new Blob([data],{type})}); addLog("Output","Orchestrator",`Exported ${filename}.`,by); }
+    catch(e){ addLog("Output","Orchestrator",`Export of ${filename} not saved (${e?.code||"declined"}). The text is shown below to copy.`,by); }
+  } else addLog("Output","Orchestrator",`Prepared ${filename}. Downloads are not available here, so the text is shown below to copy.`,by);
+  renderBanner(); save();
+}
+
+/* ---------------- Rendering ---------------- */
+function renderAll(){renderChain();renderActivity();renderBanner();renderTimeline();renderPosts();renderReview();renderLog();setBriefLocked(state.status==="running"||state.status==="awaiting"||state.status==="approved");
+  $("#runBtn").textContent = state.status==="running"?"Running…":"Run campaign";
+  $("#runBtn").disabled = state.status==="running"||state.status==="awaiting"||state.status==="approved";}
+function renderChain(){
+  $("#chain").innerHTML = STAGES.map((s,i)=>{
+    const st=state.stages[s.k]||"idle";
+    const word={idle:"",running:"working",done:"done",fix:"open problems",waiting:"your turn",error:"stopped"}[st];
+    return `<li class="stage" data-s="${st}"><span class="num">${pad(i+1)}<i></i></span><b>${esc(s.n)}</b><small>${esc(s.a)}${word?" · "+word:""}</small></li>`;
+  }).join("");
+}
+function renderActivity(){
+  const running=state.status==="running";
+  $("#activity").innerHTML = `<span>${esc(state.activity|| "Fill in the release brief, then run the campaign. The timeline below is a live preview from the Planner.")}</span>
+    <span class="detail mono" id="actDetail"></span>
+    ${running?`<button class="btn" id="stopBtn" type="button">Stop</button>`:""}`;
+  if(running) $("#stopBtn").onclick=()=>ctl?.abort();
+}
+function renderBriefErrors(list){
+  $("#briefErrors").innerHTML = list.length?`<ul class="err-list" role="alert">${list.map(l=>`<li>${esc(l)}</li>`).join("")}</ul>`:"";
+}
+function renderBanner(){
+  const B=$("#banner"); const s=state.status;
+  if(s==="stopped"){
+    const declined=state.error?.code==="not_granted";
+    B.innerHTML=`<div class="banner stop" role="alert"><h2>Stopped at ${esc(state.error?.stage||"a step")}</h2>
+      <div>${esc(state.error?.msg||"")}</div>
+      <div class="actions"><button class="btn primary" id="retryBtn" type="button">Retry this step</button>
+      ${sampleFn&&!state.offline?`<button class="btn" id="offlineBtn" type="button">Continue with offline templates</button>`:""}
+      <button class="btn" id="editBriefBtn" type="button">Edit the brief</button></div>
+      ${declined?`<div class="muted" style="font-size:13px">Offline templates follow every rule but cannot apply written notes or judge tone.</div>`:""}</div>`;
+    $("#retryBtn").onclick=()=>runFrom(state.error.stage||"plan");
+    $("#editBriefBtn").onclick=()=>{state.status="idle";state.activity="";STAGES.forEach(x=>state.stages[x.k]="idle");setBriefLocked(false);renderAll();save();$("#f-artist").focus();};
+    const ob=$("#offlineBtn"); if(ob) ob.onclick=()=>{state.offline=true; renderMode(); addLog("Orchestrator","Orchestrator","Switched to offline templates."); runFrom(state.error.stage||"plan");};
+    return;
+  }
+  if(s==="awaiting"){
+    const r=state.review||{}; const probs=r.status==="NEEDS FIX"?r.fixes:[];
+    B.innerHTML=`<div class="banner gate"><h2><span class="rec-dot"></span>Your approval is needed</h2>
+      <div class="gate-grid">
+        <div class="gate-box"><div class="eyebrow">Review result</div><div style="margin-top:6px">${r.status==="PASS"?`<span class="pill pass">Pass</span>`:`<span class="pill fix">Needs fix</span>`} after ${state.round} rewrite round${state.round===1?"":"s"}</div>
+          <div class="muted" style="margin-top:6px">${state.timeline.rows.length} milestones · ${state.posts.length} posts</div></div>
+        <div class="gate-box"><div class="eyebrow">Open problems</div>${probs.length?`<ul>${probs.slice(0,5).map(f=>`<li><span class="mono">${esc(f.id)}</span> ${esc(f.check)}: ${esc(f.note)}</li>`).join("")}${probs.length>5?`<li>…and ${probs.length-5} more in Review</li>`:""}</ul>`:`<div style="margin-top:6px">None.</div>`}</div>
+        <div class="gate-box"><div class="eyebrow">Open items</div>${r.openItems?.length?`<ul>${r.openItems.map(o=>`<li>${esc(o)}</li>`).join("")}</ul>`:`<div style="margin-top:6px">None.</div>`}</div>
+      </div>
+      <div class="field" style="max-width:320px"><label for="approver">Your name (recorded in the log)</label><input type="text" id="approver" value="${esc(state.lastApprover||"")}"><span class="hint" id="approverErr" hidden style="color:var(--rec)">Add your name to approve.</span></div>
+      ${state.editing?`<div class="actions"><button class="btn primary" id="sendEdits" type="button">Send edits to review</button><button class="btn" id="cancelEdits" type="button">Cancel editing</button><span class="muted" style="font-size:13px">Edit posts in the Posts tab.</span></div>`:
+      `<div class="actions"><button class="btn pass" id="approveBtn" type="button">Approve</button>
+        <button class="btn" id="rejectBtn" type="button" aria-expanded="${state.rejectOpen}">Request changes</button>
+        <button class="btn" id="editBtn" type="button">Edit posts myself</button></div>`}
+      ${state.rejectOpen&&!state.editing?`<div class="reject-form">
+        <div class="radio-row"><label><input type="radio" name="rejTarget" value="copy" checked> Change the posts (Execution Agent)</label>
+        <label><input type="radio" name="rejTarget" value="timeline"> Change the timeline (Planner Agent)</label></div>
+        <label for="rejNotes" class="eyebrow">What should change</label>
+        <textarea id="rejNotes" rows="3" placeholder="e.g. Less formal, more playful. Move the cover reveal earlier."></textarea>
+        <span class="hint" id="rejErr" hidden style="color:var(--rec)">Write what should change.</span>
+        ${!useClaude()?`<span class="hint">Offline mode cannot apply written notes. Use “Edit posts myself” or edit the brief.</span>`:""}
+        <div class="actions"><button class="btn rec" id="sendReject" type="button" ${!useClaude()?"disabled":""}>Send back</button></div></div>`:""}
+    </div>`;
+    const ap=$("#approver"); ap.oninput=()=>{state.lastApprover=ap.value;};
+    if(state.editing){ $("#sendEdits").onclick=submitEdits; $("#cancelEdits").onclick=()=>{state.editing=false;renderBanner();renderPosts();}; return; }
+    $("#approveBtn").onclick=approve;
+    $("#rejectBtn").onclick=()=>{state.rejectOpen=!state.rejectOpen;renderBanner();};
+    $("#editBtn").onclick=()=>{state.editing=true;state.rejectOpen=false;renderBanner();renderPosts();switchTab("posts");};
+    const sr=$("#sendReject"); if(sr) sr.onclick=reject;
+    return;
+  }
+  if(s==="approved"){
+    B.innerHTML=`<div class="banner done"><h2>Approved by ${esc(state.approvedBy)}</h2>
+      <div class="muted" style="font-size:13.5px">${esc(new Date(state.approvedAt).toLocaleString())}. Export the approved calendar and copy. The engine never posts anything; you publish it yourself.</div>
+      ${(state.review?.openItems||[]).filter(o=>/\[LINK\]|\[TO BE CONFIRMED\]/.test(o)).map(o=>`<div class="note">Still to fill in: ${esc(o)}</div>`).join("")}
+      <div class="export-grid"><button class="btn primary" data-x="csv" type="button">Calendar (.csv)</button><button class="btn" data-x="md" type="button">Campaign doc (.md)</button><button class="btn" data-x="json" type="button">Full package (.json)</button></div>
+      ${state.exportText?`<textarea class="export-out" id="exportOut" readonly aria-label="Export text">${esc(state.exportText)}</textarea><div class="actions"><button class="btn" id="copyExport" type="button">Copy text</button><span class="muted" id="copyMsg" style="font-size:13px"></span></div>`:""}
+    </div>`;
+    B.querySelectorAll("[data-x]").forEach(b=>b.onclick=()=>doExport(b.dataset.x));
+    const cb=$("#copyExport"); if(cb) cb.onclick=async()=>{try{await navigator.clipboard.writeText(state.exportText);$("#copyMsg").textContent="Copied.";}catch(e){const t=$("#exportOut");t.focus();t.select();$("#copyMsg").textContent="Selected. Press Ctrl/Cmd+C to copy.";}};
+    return;
+  }
+  B.innerHTML="";
+}
+function renderTimeline(){
+  const P=$("#p-timeline");
+  let tl=state.timeline, preview=false, err=[];
+  if(!tl){
+    preview=true; const b=readBrief(); err=checkBrief(b);
+    if(!err.length){ try{tl=planTimeline(b);}catch(e){err=[e.message];} }
+  }
+  $("#c-timeline").textContent = tl?tl.rows.length:"–";
+  if(!tl){ P.innerHTML=`<div class="panel-head"><h2>Campaign timeline</h2></div><div class="empty">The Planner needs a complete brief to draw the timeline.<br>${err.map(esc).join("<br>")}</div>`; return; }
+  const inpDate = preview?readBrief().date:state.inputs.date;
+  P.innerHTML = `<div class="panel-head"><h2>Campaign timeline</h2><span class="muted mono" style="font-size:12.5px">${preview?"Preview · not run yet":"Planner Agent · "+tl.mode}</span></div>
+    ${tl.warnings.map(w=>`<p class="note">${esc(w)}</p>`).join("")}
+    <div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Day</th><th>Count</th><th>Milestone</th><th>Platform</th><th>Notes</th></tr></thead><tbody>
+    ${tl.rows.map(r=>`<tr class="${r.date===inpDate&&r.off===0?"drop":""}"><td class="mono" style="white-space:nowrap">${esc(fmtTable(r.date))}</td><td>${esc(r.day)}</td>
+      <td><span class="tminus">${esc(tminus(r.off))}</span><br><span class="muted" style="font-size:12px;white-space:nowrap">${esc(r.week)}</span></td>
+      <td><b style="font-weight:600">${esc(r.label)}</b></td>
+      <td>${r.platforms.map(p=>`<span class="pf ${isSocial(p)?"":"dsp"}">${esc(pname(p))}</span>`).join("")}</td>
+      <td>${esc(r.notes)}${Object.entries(r.tasks||{}).map(([p,t])=>`<div class="muted" style="font-size:12.5px;margin-top:4px">${esc(pname(p))} task: ${esc(t)}</div>`).join("")}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="checklist"><h3>Drop Day Checklist · ${esc(fmtLong(inpDate))}</h3><ul>${tl.checklist.map(c=>`<li>${esc(c)}</li>`).join("")}</ul></div>`;
+}
+function renderPosts(){
+  const P=$("#p-posts");
+  const done=state.posts.filter(p=>state.drafts[p.id]).length;
+  $("#c-posts").textContent = state.posts.length?`${done}/${state.posts.length}`:"–";
+  if(!state.posts.length){ P.innerHTML=`<div class="panel-head"><h2>Posts</h2></div><div class="empty">Posts appear here once the Execution Agent writes them. Run the campaign to start.</div>`; return; }
+  const byId=state.review?.byId||{}; const editing=state.editing;
+  const groups=[]; for(const r of state.timeline.rows){ const ps=state.posts.filter(p=>p.rowId===r.id); const tasks=Object.entries(r.tasks||{}); if(ps.length||tasks.length) groups.push({r,ps,tasks}); }
+  P.innerHTML = `<div class="panel-head"><h2>Posts</h2><span class="muted" style="font-size:13px">${editing?"Editing: change any post, then press “Send edits to review”.":`${done} of ${state.posts.length} drafted`}</span></div>
+  ${groups.map(({r,ps,tasks})=>`<div class="day-group"><div class="day-head"><span class="tminus">${esc(tminus(r.off))}</span><b>${esc(r.day)}, ${esc(fmtTable(r.date))}</b><span class="muted">${esc(r.label)}</span></div>
+    <div class="cards">${ps.map(p=>postCard(p,byId[p.id],editing)).join("")}
+    ${tasks.map(([pf,t])=>`<div class="card task"><div class="card-top"><span class="pf dsp">${esc(pname(pf))}</span><span class="pill na">Task</span></div><div class="caption">${esc(t)}</div></div>`).join("")}</div></div>`).join("")}`;
+}
+function postCard(p, fx, editing){
+  const d=state.drafts[p.id];
+  if(!d) return `<div class="card"><div class="card-top"><span class="pf">${esc(pname(p.platform))}</span><span class="mono muted" style="font-size:12px">${esc(p.id)}</span></div><div class="muted">Waiting for the Execution Agent…</div></div>`;
+  const len=postLen(p,d), lim=PLATFORMS[p.platform].limit;
+  const pill = !state.review?"":fx?`<span class="pill fix">Fix</span>`:`<span class="pill pass">Pass</span>`;
+  if(editing) return `<div class="card" data-edit="${p.id}"><div class="card-top"><span class="pf">${esc(pname(p.platform))}</span><span class="mono muted" style="font-size:12px">${esc(p.id)}</span></div>
+    <label class="eyebrow" for="h-${p.id}">Hook</label><input type="text" class="e-hook" id="h-${p.id}" value="${esc(d.hook)}">
+    <label class="eyebrow" for="c-${p.id}">Caption</label><textarea class="e-cap" id="c-${p.id}" rows="4">${esc(d.caption)}</textarea>
+    <label class="eyebrow" for="t-${p.id}">Hashtags</label><input type="text" class="e-tags" id="t-${p.id}" value="${esc((d.hashtags||[]).join(" "))}"></div>`;
+  return `<div class="card ${fx?"has-fix":""}"><div class="card-top"><span class="pf">${esc(pname(p.platform))}</span><span style="display:flex;gap:6px;align-items:center"><span class="mono muted" style="font-size:12px">${esc(p.id)}</span>${pill}</span></div>
+    <div class="hook">${esc(d.hook)}</div><div class="caption">${esc(d.caption)}</div><div class="tags">${esc((d.hashtags||[]).join(" "))}</div>
+    ${fx?`<ul class="fixes">${fx.map(f=>`<li>${esc(f)}</li>`).join("")}</ul>`:""}
+    <div class="card-foot"><span>${(d.hashtags||[]).length} tags</span><span class="${len>lim?"over":""}">${len.toLocaleString()} / ${lim.toLocaleString()}</span></div></div>`;
+}
+function renderReview(){
+  const P=$("#p-review"); const r=state.review;
+  $("#c-review").textContent = r?(r.status==="PASS"?"Pass":"Fix"):"–";
+  if(!r){ P.innerHTML=`<div class="panel-head"><h2>Review &amp; compliance</h2></div><div class="empty">The Review &amp; Compliance Agent checks facts, dates, tone, privacy, hashtags, length and links once posts are drafted.</div>`; return; }
+  P.innerHTML = `<div class="panel-head"><h2>Review &amp; compliance</h2><span>${r.status==="PASS"?`<span class="pill pass">Pass</span>`:`<span class="pill fix">Needs fix</span>`} <span class="muted mono" style="font-size:12.5px">rewrite round ${r.round} of 2 · ${r.llm?"rules + Claude":"rules only"}</span></span></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Check</th><th>Result</th><th>Note</th></tr></thead><tbody>
+    ${r.cats.map(c=>`<tr><td style="white-space:nowrap"><b style="font-weight:600">${esc(c.name)}</b></td><td>${c.result==="PASS"?`<span class="pill pass">Pass</span>`:c.result==="FIX"?`<span class="pill fix">Fix</span>`:`<span class="pill na">Not checked</span>`}</td><td>${esc(c.note)}</td></tr>`).join("")}
+    </tbody></table></div>
+    ${r.fixes.length?`<h3 style="font-size:14px;margin:16px 0 8px">Fixes (${r.fixes.length})</h3><div class="tbl-wrap"><table><thead><tr><th>Post</th><th>Check</th><th>Reason</th></tr></thead><tbody>
+      ${r.fixes.map(f=>{const p=state.posts.find(x=>x.id===f.id);return `<tr><td class="mono" style="white-space:nowrap">${esc(f.id)} · ${esc(p?pname(p.platform):"")}</td><td style="white-space:nowrap">${esc(f.check)}</td><td>${esc(f.note)}</td></tr>`;}).join("")}</tbody></table></div>`:""}
+    ${r.openItems.length?`<h3 style="font-size:14px;margin:16px 0 8px">Open items for you</h3><ul style="margin:0;padding-left:20px">${r.openItems.map(o=>`<li>${esc(o)}</li>`).join("")}</ul>`:""}`;
+}
+function renderLog(){
+  const P=$("#p-log");
+  $("#c-log").textContent=state.log.length;
+  P.innerHTML = `<div class="panel-head"><h2>Activity log</h2><span class="muted" style="font-size:13px">Step, agent, result, time, who approved</span></div>
+  ${state.log.length?`<div class="tbl-wrap"><table class="log"><thead><tr><th>Time</th><th>Step</th><th>Agent</th><th>Result</th><th>By</th></tr></thead><tbody>
+  ${state.log.map(l=>`<tr><td>${esc(l.clock)}</td><td>${esc(l.step)}</td><td>${esc(l.agent)}</td><td class="res">${esc(l.result)}</td><td>${esc(l.by)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">Every step the Orchestrator runs is logged here.</div>`}`;
+}
+function switchTab(t){
+  document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.tab===t)));
+  for(const k of ["timeline","posts","review","log"]) $("#p-"+k).hidden = k!==t;
+}
+function renderMode(){
+  const m=$("#mode");
+  if(!claudeChecked){m.dataset.m="checking";$("#modeText").textContent="Connecting to Claude…";return;}
+  if(useClaude()){m.dataset.m="claude";$("#modeText").textContent="Agents run on Claude · "+getModel();}
+  else {m.dataset.m="offline";$("#modeText").textContent=sampleFn?"Offline templates (switched)":"Offline templates · no API key";}
+}
+
+/* ---------------- Boot ---------------- */
+buildPlatformChips();
+const saved=load();
+writeBrief(saved?.brief || exampleBrief());
+if(saved?.state){
+  state={...freshState(), ...saved.state};
+  if(state.status==="running"){ state.status="stopped"; state.error={stage:state.at||"plan", msg:"The page reloaded while a step was running."}; }
+}
+STAGES.forEach(s=>{ if(!state.stages[s.k]) state.stages[s.k]="idle"; });
+renderAll(); renderMode();
+
+$("#brief").addEventListener("submit",e=>{e.preventDefault(); if(state.status==="running") return; startCampaign();});
+$("#brief").addEventListener("input",()=>{ $("#exampleTag").hidden=true; if(!state.timeline) renderTimeline(); try{const s=load()||{};s.brief=readBrief();localStorage.setItem(STORE_KEY,JSON.stringify(s));}catch(e){} });
+$("#clearBtn").onclick=()=>{ if(state.status==="running"||state.status==="awaiting"||state.status==="approved") return; writeBrief({platforms:[],before:4,after:1}); renderBriefErrors([]); renderTimeline(); $("#f-artist").focus(); };
+$("#resetBtn").onclick=()=>{ ctl?.abort(); const off=state.offline; state=freshState(); state.offline=off; STAGES.forEach(s=>state.stages[s.k]="idle"); setBriefLocked(false); renderAll(); save(); };
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+
+/* ---------------- Standalone: Anthropic API + file downloads ---------------- */
+const KEY_STORE="comeback-engine-apikey", MODEL_STORE="comeback-engine-model", DEFAULT_MODEL="claude-sonnet-5-5";
+function lsGet(k){try{return localStorage.getItem(k)||"";}catch(e){return "";}}
+function lsSet(k,v){try{v?localStorage.setItem(k,v):localStorage.removeItem(k);}catch(e){}}
+function getModel(){return lsGet(MODEL_STORE)||DEFAULT_MODEL;}
+function parseLooseJSON(text){
+  const t=String(text||"").trim();
+  try{return JSON.parse(t);}catch(e){}
+  const fence=t.match(/```(?:json)?\s*([\s\S]*?)```/i); if(fence){try{return JSON.parse(fence[1]);}catch(e){}}
+  const a=t.search(/[\[{]/), b=Math.max(t.lastIndexOf("}"),t.lastIndexOf("]"));
+  if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1));}catch(e){}}
+  throw {code:"invalid_json",message:"The reply was not valid JSON.",text:t};
+}
+function makeApiSample(apiKey){
+  const ask = async (input, opts={})=>{
+    const messages = typeof input==="string"?[{role:"user",content:input}]:input;
+    let res;
+    try{
+      res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal:opts.signal,
+        headers:{"content-type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:getModel(), max_tokens:8000, messages})});
+    }catch(e){
+      if(e?.name==="AbortError") throw {code:"cancelled",message:"Stopped."};
+      throw {code:"upstream_error",message:"Could not reach the Anthropic API. Check your connection."};
+    }
+    if(!res.ok){
+      let detail=""; try{detail=(await res.json())?.error?.message||"";}catch(e){}
+      if(res.status===401||res.status===403) throw {code:"not_granted",message:"The API key was rejected. Check it under Connect Claude."};
+      if(res.status===429) throw {code:"rate_limited",message:"Rate-limited by the Anthropic API. Wait a minute, then retry."};
+      if(res.status===404||/model/i.test(detail)) throw {code:"upstream_error",message:`Model "${getModel()}" is not available to this key. Change it under Connect Claude.`};
+      throw {code:"upstream_error",message:`Anthropic API error ${res.status}${detail?": "+detail:""}`};
+    }
+    const data=await res.json();
+    const text=(data.content||[]).filter(c=>c.type==="text").map(c=>c.text).join("");
+    if(!text.trim()) throw {code:"empty_completion",message:"The agent returned nothing."};
+    opts.onText?.({text,delta:text});
+    return {text, truncated:data.stop_reason==="max_tokens"};
+  };
+  const fn = (input,opts)=>ask(input,opts);
+  fn.json = async (input,opts={})=>{
+    const prompt = typeof input==="string"?input+"\n\nYour reply will be machine-parsed: reply with the JSON only.":input;
+    const {text,truncated}=await ask(prompt,opts);
+    if(truncated) throw {code:"invalid_json",message:"The reply was cut short. Try fewer posts at a time.",text};
+    return parseLooseJSON(text);
+  };
+  return fn;
+}
+downloadsApi = { async save({filename,data}){
+  const url=URL.createObjectURL(data instanceof Blob?data:new Blob([data]));
+  const a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}};
+function connect(){
+  const key=lsGet(KEY_STORE);
+  sampleFn = key?makeApiSample(key):null;
+  if(key) state.offline=false;
+  claudeChecked=true; renderMode(); renderBanner();
+  $("#keyBtn").textContent = key?"Claude connected":"Connect Claude";
+}
+$("#keyBtn").onclick=()=>{const p=$("#keyPanel"); p.hidden=!p.hidden; $("#keyBtn").setAttribute("aria-expanded",String(!p.hidden));
+  $("#k-key").value=lsGet(KEY_STORE); $("#k-model").value=lsGet(MODEL_STORE); $("#k-msg").textContent=""; if(!p.hidden) $("#k-key").focus();};
+$("#keyPanel").addEventListener("submit",e=>{e.preventDefault();
+  const k=$("#k-key").value.trim(); if(!k){$("#k-msg").textContent="Paste a key first.";return;}
+  lsSet(KEY_STORE,k); lsSet(MODEL_STORE,$("#k-model").value.trim()); connect(); $("#k-msg").textContent="Saved. Agents now run on Claude.";});
+$("#k-forget").onclick=()=>{lsSet(KEY_STORE,""); $("#k-key").value=""; connect(); $("#k-msg").textContent="Key removed from this browser.";};
+connect();
+})();
+</script>
+</body>
+</html>
